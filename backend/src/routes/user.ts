@@ -1,12 +1,14 @@
 import { Hono } from "hono";
-const userRoute = new Hono<{
-    Bindings: {
-        DATABASE_URL: string
-    } 
-}>();
-
 import { PrismaClient } from '@prisma/client/edge'
 import { withAccelerate } from '@prisma/extension-accelerate'
+import {sign} from 'hono/jwt'
+
+const userRoute = new Hono<{
+    Bindings: {
+        DATABASE_URL: string,
+        JWT_SECRET: string
+    } 
+}>();
 
 userRoute.post('/signup', async c => { 
         const prisma = new PrismaClient({
@@ -15,20 +17,53 @@ userRoute.post('/signup', async c => {
         const body = await c.req.json();
         
         try{
-            const res = await prisma.user.create({
+            const user = await prisma.user.create({
                 data : {
                     email : body.email,
                     password : body.password,
                 },
             })
-            return c.json(res);
+
+            const token = await sign({
+                id : user.id,
+                email : user.email
+            }, c.env.JWT_SECRET)
+
+            return c.json({token});
         } catch(err){
-            return c.text('An error encountered' + err);
+            return c.text('An error encountered while signup ' + err);
         }
 })
 
-userRoute.post('/signin', c => {
-    return c.text('signin route');
+userRoute.post('/signin', async c => {
+    const prisma = new PrismaClient({
+        datasourceUrl: c.env.DATABASE_URL,
+    }).$extends(withAccelerate())
+    const body = await c.req.json();  
+
+    try{
+        const user = await prisma.user.findUnique({
+            where : {
+                email : body.email
+            }
+        })
+
+        if(!user || user.password!=body.password){
+            c.status(403);
+            return c.json({
+                error : "Invalid credentials / User doesnt exist"
+            })
+        }
+
+        const token = await sign({
+                id : user.id,
+                email : user.email
+            }, c.env.JWT_SECRET)
+        return c.json({token});
+
+    } catch(err){
+        return c.text('An error encountered while signin ' + err);
+    }
 })
 
 export default userRoute
