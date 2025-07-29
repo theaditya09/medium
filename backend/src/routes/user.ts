@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { PrismaClient } from '@prisma/client/edge'
 import { withAccelerate } from '@prisma/extension-accelerate'
-import {sign} from 'hono/jwt'
+import { sign } from 'hono/jwt'
 
 const userRoute = new Hono<{
     Bindings: {
@@ -21,6 +21,7 @@ userRoute.post('/signup', async c => {
                 data : {
                     email : body.email,
                     password : body.password,
+                    name : body.name
                 },
             })
 
