@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import { PrismaClient } from '@prisma/client/edge'
 import { withAccelerate } from '@prisma/extension-accelerate'
 import { verify } from "hono/jwt";
+import { createBlogInput, updateBlogInput } from "@swekandrew/medium-common"
+
 const blogRoute = new Hono<{
     Bindings: {
         DATABASE_URL: string,
@@ -46,18 +48,29 @@ blogRoute.post('/', async c => {
     }).$extends(withAccelerate())
 
     const body = await c.req.json();
+    const { success } = createBlogInput.safeParse(body);
+    if(!success){
+        return c.json({
+            message : "Inputs are not correct"
+        })
+    }
+
     const userId = c.get('userId');
-    const blog = await prisma.post.create({
-        data : {
-            title : body.title,
-            content : body.content,
-            authorId : userId
-        }
-    })
-    return c.json({
-        msg : "Post created succesfully",
-        post : blog
-    })
+    try{
+        const blog = await prisma.post.create({
+            data : {
+                title : body.title,
+                content : body.content,
+                authorId : userId
+            }
+        })
+        return c.json({
+            msg : "Post created succesfully",
+            post : blog
+        })
+    }catch(err){
+        return c.text('An error encountered while creating post ' + err);
+    }
 })
 
 blogRoute.put('/',async  c => {
@@ -66,20 +79,31 @@ blogRoute.put('/',async  c => {
     }).$extends(withAccelerate())
 
     const body = await c.req.json();
-    const post = await prisma.post.update({
-        where : {
-            id : body.id
-        },
-        data : {
-            title : body.title,
-            content : body.content,
-        }
-    })
+    const { success } = updateBlogInput.safeParse(body);
+    if(!success){
+        return c.json({
+            message : "Inputs are not correct"
+        })
+    }
 
-    return c.json({
-        msg : "Blog updated successfully",
-        post
-    });
+    try{
+        const post = await prisma.post.update({
+            where : {
+                id : body.id
+            },
+            data : {
+                title : body.title,
+                content : body.content,
+            }
+        })
+    
+        return c.json({
+            msg : "Blog updated successfully",
+            post
+        });
+    }catch(err){
+        return c.text('An error encountered while updating post ' + err);
+    }
 })
 
 blogRoute.get('/', async c => {
@@ -89,22 +113,26 @@ blogRoute.get('/', async c => {
 
     const body = await c.req.json();
     const id = body.id
-    const post = await prisma.post.findFirst({
-        where : {
-            id
-        }
-    })
-    
-    if(!post){
-        return c.json({
-            msg: "Invalid post id, please enter a correct id"
+    try{
+        const post = await prisma.post.findFirst({
+            where : {
+                id
+            }
         })
+        
+        if(!post){
+            return c.json({
+                msg: "Invalid post id, please enter a correct id"
+            })
+        }
+    
+        return c.json({
+            msg : "Post fetched successfully",
+            post
+        })
+    }catch(err){
+        return c.text('An error encountered while fetching post ' + err);
     }
-
-    return c.json({
-        msg : "Post fetched successfully",
-        post
-    })
 
 })
 
@@ -113,11 +141,15 @@ blogRoute.get('/bulk', async c => {
         datasourceUrl: c.env.DATABASE_URL,
     }).$extends(withAccelerate())
 
-    const blogs = await prisma.post.findMany();
-
-    return c.json({
-        blogs
-    });
+    try{
+        const blogs = await prisma.post.findMany();
+    
+        return c.json({
+            blogs
+        });
+    }catch(err){
+        return c.text('DB call failed, retry. Error : ' + err);
+    }
 })
 
 export default blogRoute
