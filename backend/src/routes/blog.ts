@@ -14,6 +14,47 @@ const blogRoute = new Hono<{
     }
 }>();
 
+blogRoute.get('/id/:id', async c => {
+    const prisma = new PrismaClient({
+        datasourceUrl: c.env.DATABASE_URL,
+    }).$extends(withAccelerate());
+
+    const id = c.req.param('id'); 
+
+    try {
+        const post = await prisma.post.findFirst({
+            where: {
+                id
+            },
+            select : {
+                content : true,
+                title : true,
+                id : true,
+                author : {
+                    select : {
+                        name : true
+                    }
+                },
+                published : true,
+                createdAt : true
+            }
+        });
+
+        if (!post) {
+            return c.json({
+                msg: "Invalid post id, please enter a correct id"
+            }, 404);
+        }
+
+        return c.json({
+            msg: "Post fetched successfully",
+            post
+        }, 200);
+    } catch (err) {
+        return c.text('An error encountered while fetching post: ' + err, 500);
+    }
+});
+
 blogRoute.use('/*', async (c, next) => {
     const header = c.req.header("Authorization") || "";
     if(!header.startsWith("Bearer ")){
@@ -106,33 +147,6 @@ blogRoute.put('/edit',async  c => {
     }
 })
 
-blogRoute.get('/:id', async c => {
-    const prisma = new PrismaClient({
-        datasourceUrl: c.env.DATABASE_URL,
-    }).$extends(withAccelerate());
 
-    const id = c.req.param('id'); 
-
-    try {
-        const post = await prisma.post.findFirst({
-            where: {
-                id
-            }
-        });
-
-        if (!post) {
-            return c.json({
-                msg: "Invalid post id, please enter a correct id"
-            }, 404);
-        }
-
-        return c.json({
-            msg: "Post fetched successfully",
-            post
-        }, 200);
-    } catch (err) {
-        return c.text('An error encountered while fetching post: ' + err, 500);
-    }
-});
 
 export default blogRoute

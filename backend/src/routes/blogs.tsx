@@ -15,6 +15,9 @@ blogsRoute.get('/', async c => {
 
     try{
         const blogs = await prisma.post.findMany({
+            // where:{
+            //     published : true
+            // },
             select : {
                 content : true,
                 title : true,
@@ -23,7 +26,8 @@ blogsRoute.get('/', async c => {
                     select : {
                         name : true
                     }
-                }
+                },
+                createdAt : true
             }
         });
     
