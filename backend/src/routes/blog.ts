@@ -42,7 +42,7 @@ blogRoute.post('/test', async c => {
     
 })
 
-blogRoute.post('/', async c => {
+blogRoute.post('/create', async c => {
     const prisma = new PrismaClient({
         datasourceUrl: c.env.DATABASE_URL,
     }).$extends(withAccelerate())
@@ -73,7 +73,7 @@ blogRoute.post('/', async c => {
     }
 })
 
-blogRoute.put('/',async  c => {
+blogRoute.put('/edit',async  c => {
     const prisma = new PrismaClient({
         datasourceUrl: c.env.DATABASE_URL,
     }).$extends(withAccelerate())
@@ -106,50 +106,33 @@ blogRoute.put('/',async  c => {
     }
 })
 
-blogRoute.get('/', async c => {
+blogRoute.get('/:id', async c => {
     const prisma = new PrismaClient({
         datasourceUrl: c.env.DATABASE_URL,
-    }).$extends(withAccelerate())
+    }).$extends(withAccelerate());
 
-    const body = await c.req.json();
-    const id = body.id
-    try{
+    const id = c.req.param('id'); 
+
+    try {
         const post = await prisma.post.findFirst({
-            where : {
+            where: {
                 id
             }
-        })
-        
-        if(!post){
+        });
+
+        if (!post) {
             return c.json({
                 msg: "Invalid post id, please enter a correct id"
-            })
+            }, 404);
         }
-    
+
         return c.json({
-            msg : "Post fetched successfully",
+            msg: "Post fetched successfully",
             post
-        })
-    }catch(err){
-        return c.text('An error encountered while fetching post ' + err);
+        }, 200);
+    } catch (err) {
+        return c.text('An error encountered while fetching post: ' + err, 500);
     }
-
-})
-
-blogRoute.get('/bulk', async c => {
-    const prisma = new PrismaClient({
-        datasourceUrl: c.env.DATABASE_URL,
-    }).$extends(withAccelerate())
-
-    try{
-        const blogs = await prisma.post.findMany();
-    
-        return c.json({
-            blogs
-        });
-    }catch(err){
-        return c.text('DB call failed, retry. Error : ' + err);
-    }
-})
+});
 
 export default blogRoute
